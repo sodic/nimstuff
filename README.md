@@ -1,1 +1,2 @@
-#nimstuff
+# nimstuff
+Various Nim programs
