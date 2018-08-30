@@ -1,38 +1,9 @@
 import os
 import hts 
-import tables
-import eventData
 import strutils
-import positionData
-
-
-type Histogram = Table[int, PositionData]
-
-
-proc `$`(histogram: Histogram): string =
-  for key, value in histogram:
-    result = result & $key & ": " & $value & "\n"
+import slidingMap
 
 var bam:Bam
-
-proc initHistogram(): Histogram = initTable[int, PositionData]()
-
-
-proc update(histogram: var Histogram, 
-            index: int, 
-            key: string, 
-            referenceIndex: int
-          ): void =
-  let data = histogram.mgetOrPut(index, newPositionData())
-  data.referenceIndex = index
-  data.events.increment(key)
-
-proc update(histogram: var Histogram, 
-            index: int, 
-            base: char, 
-            referenceIndex: int
-          ): void =
-  update(histogram, index, base & "", referenceIndex)
   
 func lenAsInt(target: Target): int =
   result = cast[int](target.length)
@@ -40,77 +11,60 @@ func lenAsInt(target: Target): int =
     raise newException(RangeError, "Chromosome length out of range for integers")
 
 
-proc process(chromosome: Target) : void =
-  var histogram = initHistogram()
+proc process[StorageType](chromosome: Target, storage: var StorageType) : void =
+
+
+  proc reportMatches(start: int, length: int, read: var Record, 
+                     reference: var Record) : void =
+    for offset in countUp(0, length - 1):
+      storage.handleRegular(start, read.baseAt(start + offset) & "",
+                            reference.baseAt(start + offset)
+                           )
+    
+  proc reportMissing(start: int, length: int, sign: char, 
+                     sequence: var Record): void =
+    var buffer = ""
+
+    for offset in countUp(0, length - 1):
+      buffer &= sequence.baseAt(start + offset)
+
+    storage.handleRegular(start, sign & buffer,'/')
+
+
   var counter = 0
   for read in bam.query(chromosome.name, 0, chromosome.lenAsInt - 1):
-    counter.inc
-    if counter > 400:
-        break
+    var 
+      mutualOffset = read.start
+      queryOnlyOffset = 0
+      refOnlyOffset = 0
 
-    echo read.qname
-    var
-      offset = read.start
-      queryOffset = 0
-      exclusiveRefOffset = 0
-     
-    for event in read.cigar:
+    var events = read.cigar
+
+    var readStartEvent = events()
+
+    for event in events:
       let consumes = event.consumes()
       
-      if consumes.query:
-        queryOffset += event.len
+      if consumes.query and consumes.reference: 
+        # mutual, report all matches
+        reportMatches(mutualOffset, event.len, read, reference)
+
+      elif consumes.reference:
+        # reference only, report deletion
+        reportMissing(mutualOffset + refOnlyOffset, event.len, '-', reference)
+        refOnlyOffset += event.len
+
+      elif consumes.query:
+        # query only, report insertion
+        reportMissing(mutualOffset + queryOnlyOffset, event.len, '+', query)
+        queryOnlyOffset += event.len
       
-      if consumes.reference:
-        offset += event.len
-        if not consumes.query:
-          exclusiveRefOffset += event.len
+      else:
+        raise newException(ValueError, "?????")
 
-      let position = queryOffset - (offset - exclusiveRefOffset)
-      if position < 0:
-        break # todo figure out
-
-      let base = read.baseAt(offset)
-      let quality = read.baseQualityAt(position)
-
-      histogram.update(offset, base, offset)
-
-  echo histogram
+      mutualOffset += event.len
 
 open(bam, paramStr(1), index=true)
+var fuckingMap = newSlidingMap(2000)
 for chromosome in targets(bam.hdr):
-  process(chromosome)
-
-
-
-
-
-# var position = 830146
-# let ref_allele = 'G'
-# for alignedRead in bam.query("PseudomonaLESB58.fa", 0, position + 1):
-#   var 
-#     off = alignedRead.start
-#     qoff = 0
-#     roff_only = 0
-#     nalt = 0
-#     nref = 0
-#   for event in alignedRead.cigar:
-#     var cons = event.consumes
-#     if cons.query:
-#       qoff += event.len
-#     if cons.reference:
-#       off += event.len
-#       if not cons.query:
-#         roff_onl y+= event.len
-#     # continue until we get to the genomic position
-#     if off <= position: continue
-#     # since each cigar op can consume many bases
-#     # calc how far past the requested position
-#     var over = off - position - roff_only
-#     # get the base 
-#     var base = alignedRead.base_at(qoff - over)
-#     if base == ref_allele:
-#       nref += 1
-#     else:
-#       nalt += 1
-#   echo nref, nalt
-#   # now nalt and nref are the allele counts ready for use.   
+  process(chromosome, fuckingMap)

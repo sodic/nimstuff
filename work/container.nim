@@ -1,4 +1,6 @@
+import slidingMap
 import tables
+import deques
 
 type 
   Container = ref object
@@ -7,10 +9,21 @@ type
     arr: array[5,int]
   Map = Table[int, Container]
 
-# proc `$`(map: Map): string =
-#   for key, value in map:
-#     result = result & $key & ": " & $value
+proc `$`(contanier: Container): string =
+  $(contanier[])
 
+proc `$`(map: Map): string =
+  for key, value in map:
+    result = result & $key & ": " & $value
+
+
+
+proc newContainer(): Container =
+  Container(
+    name: 'c',
+    index: 1,
+    arr: [1,2,3,4,5]
+  )
 
 proc initMap() : Map =
   initTable[int, Container]()
@@ -33,4 +46,19 @@ for i in 0..4:
   
 
 echo someContainer[]
+
+
+var d = initDeque[Container](16)
+d.addFirst(newContainer())
+d.addFirst(newContainer())
+d.addFirst(newContainer())
+echo d
 # echo someMap
+
+
+var map = newSlidingMap(5)
+map.handleRegular(
+  position: 5, 
+  value: "asd",
+  refBase: '4'
+)

@@ -11,3 +11,11 @@ proc fib_generator : (proc (): int) =
 var gen = fib_generator()
 for i in 0..20:
   echo gen()
+
+proc foo(a: int):int =
+  proc bar(): int =
+    return a*2
+  return 6 + bar()
+
+
+echo foo(5)
