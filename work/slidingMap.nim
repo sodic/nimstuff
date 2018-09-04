@@ -2,31 +2,32 @@ import deques
 import eventData
 import positionData
 import utilities
+import tables 
+import sequtils
 
 type SlidingMap* = ref object
   deq: Deque[PositionData]
+  submit: proc (data: PositionData): void
   maxSize: int # estimated maximum size of the double ended queue
   beginning: int
 
-proc newSlidingMap*(maxSize: int): SlidingMap =
+proc newSlidingMap*(maxSize: int, 
+                    submitProc: proc (data: PositionData): void): SlidingMap =
   let adjustedSize = powerOf2Ceil(maxSize)
   SlidingMap(
-    deq: initDeque[PositionData](adjustedSize), 
+    deq: initDeque[PositionData](adjustedSize),
+    submit: submitProc, 
     maxSize: adjustedSize, 
     beginning: 0
   )
 
-proc submitDeq(map: SlidingMap): void =
+proc submitDeq(map: SlidingMap, deq: var Deque[PositionData]): void =
   # todo implement
   # asyncronous function
   # Submits the current deque to another thread for handling
-  discard #spawn submit(map.deq) 
+  for element in deq:
+    map.submit(element)
 
-proc submitOne(map: SlidingMap): void =
-  # todo implement
-  # asyncronous function
-  # Submits the last item in the deque to another thread for handling
-  discard #spawn submit(map.deq.popFirst()) 
 
 proc resetDeq(map: var SlidingMap, beginning: int) =
   # Submits the current deque and replaces it with a new one
@@ -34,7 +35,7 @@ proc resetDeq(map: var SlidingMap, beginning: int) =
   # PARAMTERS:
   # map - the map
   # beginning - the beginning position of the new deque
-  map.submitDeq()
+  map.submitDeq(map.deq)
   map.deq = initDeque[PositionData](map.maxSize)
   map.beginning = beginning
 
@@ -44,11 +45,10 @@ proc handleRegular*(
     value: string,
     refBase: char = '/'
   ): void =
-  assert position <= (map.beginning + map.deq.len)
-  if position == map.beginning + map.deq.len:
-    map.deq.addFirst(newPositionData(position))
-  else:
-    map.deq[position - map.beginning].increment(value)
+  while position >= (map.beginning + map.deq.len):
+    map.deq.addLast(newPositionData(map.deq.len + map.beginning))
+  
+  map.deq[position - map.beginning].increment(value)
 
 proc handleStart*(
     map: var SlidingMap, 
@@ -73,7 +73,7 @@ proc handleStart*(
     map.resetDeq(position)
 
   while map.beginning < position:
-    map.submitOne()
+    map.submit(map.deq.popFirst())
     map.beginning += 1
 
   map.handleRegular(position, readValue)
@@ -85,9 +85,53 @@ when isMainModule:
       (given: 789, adjusted: 1024)
     ]
     for pair in pairs:
-      var map = newSlidingMap(pair.given)
+      var map = newSlidingMap(pair.given, proc (d: PositionData): void = echo d[])
       doAssert map.maxSize == pair.adjusted
       doAssert map.deq.len == 0
+      doAssert map.beginning == 0
+
+    block:
+      var actual : seq[PositionData] = @[]
+      var map = newSlidingMap(20, proc (d: PositionData): void = actual.add(d))
+      
+      map.handleStart(0,"A", 'A')
+      map.handleRegular(1,"A", 'A')
+      map.handleRegular(2, "C", 'A')
+      map.handleRegular(3,"A", 'A')
+      doAssert map.deq.len == 4
+      doAssert map.beginning == 0
+
+      map.handleStart(0,"A", 'A')
+      map.handleRegular(1,"T", 'A')
+      map.handleRegular(2, "G", 'A')
+      map.handleRegular(3,"A", 'A')
+      doAssert map.deq.len == 4
+      doAssert map.beginning == 0
+
+      map.handleStart(0,"A", 'A')
+      map.handleRegular(1,"T", 'A')
+      map.handleRegular(2, "-AC", 'A')
+      map.handleRegular(5,"G", 'G')
+      doAssert map.deq.len == 6, $map.deq.len
+      doAssert map.beginning == 0
+
+      map.handleStart(10, "A", 'A')
+      doAssert map.deq.len == 1
+      doAssert map.beginning == 10
+
+      var expected = @[
+        {"A": 3}.toTable, 
+        {"A": 1, "T": 2}.toTable, 
+        {"C": 1, "G": 1, "-AC": 1}.toTable,
+        {"A": 2}.toTable,
+        toTable[string, int]({:}), 
+        {"G": 1}.toTable
+      ]
+
+      for idx, pair in zip(actual, expected):
+        echo pair[0][]
+        echo pair[1]
+        doAssert pair[0].events == pair[1]
 
 
 

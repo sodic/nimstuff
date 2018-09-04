@@ -2,13 +2,14 @@ import os
 import hts 
 import strutils
 import slidingMap
+import positionData
 
 var bam:Bam
   
 func lenAsInt(target: Target): int =
   result = cast[int](target.length)
-  if result < 0:
-    raise newException(RangeError, "Chromosome length out of range for integers")
+  # if result < 0:
+  #   raise newException(RangeError, "Chromosome length out of range for integers")
 
 proc reportMatches[StorageType](storage: var StorageType, start: int, length: int, 
                                 read: Record, reference: Record) : void =
@@ -63,6 +64,6 @@ proc process[StorageType](chromosome: Target, storage: var StorageType) : void =
         mutualOffset += event.len
 
 open(bam, paramStr(1), index=true)
-var fuckingMap = newSlidingMap(2000)
+var map = newSlidingMap(2000, proc (d: PositionData): void = echo d[])
 for chromosome in targets(bam.hdr):
-  process(chromosome, fuckingMap)
+  process(chromosome, map)

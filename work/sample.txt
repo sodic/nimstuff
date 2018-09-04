@@ -1,0 +1,74 @@
+Hi Andreas, I hope you are enjoying your courses :)
+
+
+If you have some time to spare, I have two questions regarding the specification of the pileup.
+They are bolded in the following text.
+
+Let's say we have something this:
+```
+read 1:    A  A  A  A  -  G  C  C  T  T  A  G  T  A  -  -  -  -  T  T  T  T  T
+read 2:    A  T  G  A  C  G  T  -  -  T  A  G  T  A  A  G  T  A  T  T  -  -  -
+read 3:    A  T  A  -  -  G  C  C  T  T  A  G  T  A  A  G  T  A  T  T  A  T  T
+
+reference: A  A  C  A  C  G  C  C  T  T  A  -  -  -  A  G  T  A  T  T  A  T  T
+
+indices:   1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23
+(wrt. the reference)
+```
+The first two indices are straightforward:
+```
+{
+    reference position: 1,
+    reference base: A,
+    events: {
+        A: 3
+    }
+}
+
+{
+    reference position: 2,
+    reference base: A,
+    events: {
+        A: 1,
+        T: 2
+    }
+}
+```
+For index 3, we agreed to account for deletions and insertions at the base 'to their left'. So, if we only had `read 3`, I would do this:
+```
+{
+    reference position: 3,
+    reference base: A,
+    events: {
+        -AC: 1
+    }
+}
+```
+And then continue reporting from index 6 (we agreed there is no need to report indices 4 and 5). The first question is: *This way of recording insertions and deletions says nothing about the current base (whether it was a match or a mismatch). Should I do it as pileup does it, e.g. _.-AC_ for a match and _C-AC_ for a mismatch (assuming _A_ turned to _C_)?* For the rest of the text, I will ignore this question and use the current notation (just -AC, no info on the current base).
+
+This was the case if we were dealing with `read 3` only. Hovewer, we need to process `read 1` and `read 2` which don't have deletions on the same positions as `read 3`.
+What to do now?
+Since I am iterating over the reads (assuming they come in in order 1, 2, 3) I think we would have: 
+```
+{
+    reference position: 3,
+    reference base: A,
+    events: {
+        A: 1,       // from read 1, added first
+        G: 1,       // from read 2, added second
+        -AC: 1      // from read 3, added last
+    }
+}
+```
+for index `3` which is OK, but this would be followed by:
+```
+{
+    reference position: 4,
+    reference base: A,
+    events: {
+        -C: 1,      // from read 1
+        A: 1,       // from read 2
+    }
+}
+```
+for index 4. Read 3 would not add any information to index 4 since the deletion was implicitly processed together on index 3. However, we still need to report index 4 because of the other reads. This means that the information concerning index 4 is now distributed across multiple entries (- *A*C in the data object for index 3 and everything stored in the data object for index 4). *Is this OK? If not, do you have an idea how to solve it? I do not see a way around this without examining all existing event strings on all positions (because the deletion could be arbitrarily long) and rearranging the map on each entry which I assume is out of the question.*

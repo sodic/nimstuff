@@ -1,4 +1,4 @@
-import slidingMap
+# import slidingMap
 import tables
 import deques
 
@@ -8,6 +8,12 @@ type
     index: int
     arr: array[5,int]
   Map = Table[int, Container]
+
+  Something = ref object
+    f: proc (a: int): int
+
+proc initSomething(g: proc(a: int) : int): Something =
+  Something(f: g)
 
 proc `$`(contanier: Container): string =
   $(contanier[])
@@ -28,6 +34,7 @@ proc newContainer(): Container =
 proc initMap() : Map =
   initTable[int, Container]()
 
+proc next(a: int): int = a + 1
 
 var someContainer = Container()
 someContainer.arr[0] = 1
@@ -55,10 +62,11 @@ d.addFirst(newContainer())
 echo d
 # echo someMap
 
-
-var map = newSlidingMap(5)
-map.handleRegular(
-  position: 5, 
-  value: "asd",
-  refBase: '4'
-)
+var s = initSomething(next)
+echo s.f(5)
+# var map = newSlidingMap(5)
+# map.handleRegular(
+#   position: 5, 
+#   value: "asd",
+#   refBase: '4'
+# )
