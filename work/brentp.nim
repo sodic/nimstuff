@@ -18,12 +18,40 @@ proc eventIterator(cigar: Cigar): (iterator (): CigarElement)  =
       yield event
   
 
-proc reportMatches[StorageType](storage: var StorageType, start: int, length: int, 
+# I should perhaps remove this as it is just a special case for 
+# reportMatcher. However, I left it for semantic reasons and encapsulation
+# (e.g. beginning of the read)
+proc reportMatch[StorageType](storage: var StorageType,
+                              readIndex: int, refIndex: int,
+                              read: Record, reference: Record): void =
+  ## Tells the provided storage about one matching base between the read and the 
+  ## reference.
+  ##
+  ## @param storage The storage object keeping track of the pile-up information.
+  ## @param readIndex The index of the matching base on the read.
+  ## @param refIndex  The index of the mathcing base on the reference.
+  ## @param read A record holding the read sequence.
+  ## @param reference A record holding the reference sequence
+  storage.handleRegular(refIndex, $read.baseAt(readIndex),reference.baseAt(refIndex))
+
+proc reportMatches[StorageType](storage: var StorageType, 
+                                readStart: int, refStart: int, length: int, 
                                 read: Record, reference: Record) : void =
+  ## Tells the provided storage about a matching substring
+  ## multiple continuos matching bases) between the read and the reference.
+  ##
+  ## @param storage The storage object keeping track of the pile-up information.
+  ## @param readStart The starting match index on the read.
+  ## @param refStart  The starting match index on the reference.
+  ## @param length The total length of the matching substring.
+  ## @param read A record holding the read sequence.
+  ## @param reference A record holding the reference sequence.
+  if length == 1:
+    reportMatch(storage, readStart, refStart, read, reference)
+    return
+
   for offset in countUp(0, length - 1):
-    storage.handleRegular(start, $read.baseAt(start + offset),
-                          reference.baseAt(start + offset)
-                         )
+    reportMatch(storage, readStart + offset, refStart + offset, read, reference)
   
 proc reportMissing[StorageType](storage: var StorageType, start: int, length: int, 
                                 sign: char, sequence: Record): void =
@@ -41,7 +69,7 @@ proc process[StorageType](chromosome: Target, storage: var StorageType) : void =
   for read in bam.query(chromosome.name, 0, chromosome.lenAsInt - 1):
     var 
       mutualOffset = read.start
-      queryOnlyOffset = 0
+      readOnlyOffset = 0
       refOnlyOffset = 0
 
     var nextEvent = eventIterator(read.cigar)
@@ -60,7 +88,10 @@ proc process[StorageType](chromosome: Target, storage: var StorageType) : void =
         
         if consumes.query and consumes.reference: 
           # mutual, report all matches
-          reportMatches(storage, mutualOffset, event.len, read, reference)
+          reportMatches(storage, 
+                        mutualOffset + readOnlyOffset, mutualOffset + refOnlyOffset,
+                        event.len, 
+                        read, reference)
 
         elif consumes.reference:
           # reference only, report deletion
@@ -69,8 +100,8 @@ proc process[StorageType](chromosome: Target, storage: var StorageType) : void =
 
         elif consumes.query:
           # query only, report insertion
-          reportMissing(storage, mutualOffset + queryOnlyOffset, event.len, '+', read)
-          queryOnlyOffset += event.len
+          reportMissing(storage, mutualOffset + readOnlyOffset, event.len, '+', read)
+          readOnlyOffset += event.len
         
         else:
           raise newException(ValueError, "?????")
