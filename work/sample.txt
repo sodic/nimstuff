@@ -6,14 +6,57 @@ They are bolded in the following text.
 
 Let's say we have something this:
 ```
-read 1:    A  A  A  A  -  G  C  C  T  T  A  G  T  A  -  -  -  -  T  T  T  T  T
-read 2:    A  T  G  A  C  G  T  -  -  T  A  G  T  A  A  G  T  A  T  T  -  -  -
-read 3:    A  T  A  -  -  G  C  C  T  T  A  G  T  A  A  G  T  A  T  T  A  T  T
+read 1:    A  A  A  A  -  G  C  C  T  T  A  C  T  A  -  -  -  -  T  T  T  T  T
+read 2:    A  T  G  A  C  G  T  -  -  T  C  G  T  A  A  G  T  A  T  T  -  -  -
+read 3:    A  T  A  -  -  G  C  C  T  T  A  G  T  -  A  G  T  A  T  T  A  T  T
 
 reference: A  A  C  A  C  G  C  C  T  T  A  -  -  -  A  G  T  A  T  T  A  T  T
 
-indices:   1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23
+indices:   1  2  3  4  5  6  7  8  9 10 11           12 13 14 15 16 17 18 19 20
 (wrt. the reference)
+
+{
+    reference position: 3,
+    reference base: C,
+    events: {
+        A: 2,
+        G: 1,
+        -AC: 1
+    }
+}
+
+{
+    reference position: 4,
+    reference base: A,
+    events: {
+        A: 2,
+        -C: 1,
+        *: 1
+    }
+}
+
+{
+    reference position: 5,
+    reference base: C,
+    events: {
+        C: 2,
+        *: 2
+    }
+}
+
+{
+    reference position: 11,
+    reference base: A,
+    events: {
+        A: 2,
+        C: 1
+        +GT: 1,
+        +GTA: 1,
+        +CTA-AGTA: 1# note: indicates an alignment problem. should be dropped by 'caller'. or reinterpreted as +CTA
+    }
+}
+
+
 ```
 The first two indices are straightforward:
 ```

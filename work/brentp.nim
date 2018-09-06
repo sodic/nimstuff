@@ -1,8 +1,9 @@
 import os
 import hts 
 import strutils
-import slidingMap
+import storageFactory
 import positionData
+import slidingDeque
 
 var bam:Bam
   
@@ -10,6 +11,12 @@ func lenAsInt(target: Target): int =
   result = cast[int](target.length)
   # if result < 0:
   #   raise newException(RangeError, "Chromosome length out of range for integers")
+
+proc eventIterator(cigar: Cigar): (iterator (): CigarElement)  =
+  return iterator(): CigarElement {.closure.} = 
+    for event in cigar:
+      yield event
+  
 
 proc reportMatches[StorageType](storage: var StorageType, start: int, length: int, 
                                 read: Record, reference: Record) : void =
@@ -37,11 +44,18 @@ proc process[StorageType](chromosome: Target, storage: var StorageType) : void =
       queryOnlyOffset = 0
       refOnlyOffset = 0
 
-    var events = read.cigar
+    var nextEvent = eventIterator(read.cigar)
 
-    # var readStartEvent = events()
-    for reference in bam.query("adsf", 0, 90): # do not forget to remove this
-      for event in events:
+    # we need to handle the start of the read separately
+    let start = nextEvent()
+
+
+    for reference in bam.query("adsf", 0, 90):
+      while true: # silly iterators with the finished thing
+        let event = nextEvent()
+        if finished(nextEvent):
+          break
+
         let consumes = event.consumes()
         
         if consumes.query and consumes.reference: 
@@ -64,6 +78,6 @@ proc process[StorageType](chromosome: Target, storage: var StorageType) : void =
         mutualOffset += event.len
 
 open(bam, paramStr(1), index=true)
-var map = newSlidingMap(2000, proc (d: PositionData): void = echo d[])
+var map = getStorage[SlidingDeque](2000, proc (d: PositionData): void = echo d[])
 for chromosome in targets(bam.hdr):
   process(chromosome, map)
