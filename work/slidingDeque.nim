@@ -50,19 +50,12 @@ proc handleRegular*(
   
   self.deq[position - self.beginning].increment(value)
 
-proc handleStart*(
-    self: var SlidingDeque, 
-    position: int, 
-    readValue: string,
-    refValue: char
-  ): void =
-  # Used to handle the first position in a new read.
-  # Submits all positions which all smaller. 
-  # 
-  # PARAMETERS:
-  # self - this sliding deque
-  # position - the starting index of the new read (wrt. the reference)
-  # readValue - the string found at the position on the read
+proc flushUpTo*(self: var SlidingDeque, position: int) : int = 
+  ## Flushes/submits all finished slots in the storage. This is meant to be 
+  ## called when starting to process a new read
+  ## 
+  ## @return the number of flushed items (primarily for testing and debugging purposes,
+  ## remove when in release)
   if position < self.beginning:
     raise newException(ValueError, "Invalid order of positions.")
   
@@ -70,12 +63,30 @@ proc handleStart*(
   # the deque, instead of emptying it manually, we can submit it and
   # make a new one  
   if position >= self.beginning + self.deq.len:
+    result = self.deq.len
     self.resetDeq(position)
+    self.beginning = position
+    return
 
   while self.beginning < position:
     self.submit(self.deq.popFirst())
     self.beginning += 1
 
+proc handleStart*(
+    self: var SlidingDeque, 
+    position: int, 
+    readValue: string,
+    refValue: char
+  ): void =
+  ## Used to handle the first position in a new read.
+  ## Submits all positions which all smaller and only then updates
+  ## the storage. 
+  ## 
+  ## PARAMETERS:
+  ## self - this sliding deque
+  ## position - the starting index of the new read (wrt. the reference)
+  ## readValue - the string found at the position on the read
+  discard self.flushUpTo(position)
   self.handleRegular(position, readValue)
 
 when isMainModule:
