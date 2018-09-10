@@ -1,4 +1,5 @@
 import eventData
+import json
 
 type
   PositionData* = ref object
@@ -10,16 +11,22 @@ type
 proc newPositionData* : PositionData =
   PositionData(referenceIndex: 0, referenceBase: '/', events: initEventData())
 
-proc newPositionData*(referenceIndex: int) : PositionData =
+proc newPositionData*(referenceIndex: int, referenceBase: char) : PositionData =
   PositionData(
     referenceIndex: referenceIndex,
-    referenceBase: '/',
+    referenceBase: referenceBase,
     events: initEventData()
   )
 
-proc increment*(positionData: var PositionData, value: string) =
-  positionData.events.increment(value)
+proc increment*(self: var PositionData, value: string) =
+  self.events.increment(value)
 
-proc `$`*(positionData: var PositionData): string =
-  "(" & "referenceIndex: " & $positionData.referenceIndex & ", referenceBase: " & $positionData.referenceBase & ", events: " & $positionData.events & ")"
+proc `$`*(self: var PositionData): string =
+  "(" & "referenceIndex: " & $self.referenceIndex & ", referenceBase: " & $self.referenceBase & ", events: " & $self.events & ")"
     
+proc `%`*(self: PositionData): JsonNode =
+  result = %{
+    "referenceIndex": %self.referenceIndex,
+    "referenceBase": %($self.referenceBase),
+    "events": %self.events
+  }

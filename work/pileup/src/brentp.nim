@@ -4,6 +4,7 @@ import strutils
 import storageFactory
 import positionData
 import slidingDeque
+import messaging
 
 type ReferenceMock = object
   data: string
@@ -22,12 +23,10 @@ proc eventIterator(cigar: Cigar): (iterator (): CigarElement)  =
   return iterator(): CigarElement {.closure.} = 
     for event in cigar:
       yield event
-  
-
 
 
 # I should perhaps remove this as it is just a special case for 
-# reportMatcher. However, I left it for semantic reasons and encapsulation
+# reportMatches. However, I left it for semantic reasons and encapsulation
 # (e.g. beginning of the read)
 proc reportMatch[StorageType](storage: var StorageType,
                               readIndex: int, refIndex: int,
@@ -40,7 +39,6 @@ proc reportMatch[StorageType](storage: var StorageType,
   ## @param refIndex  The index of the mathcing base on the reference.
   ## @param read A record holding the read sequence.
   ## @param reference A record holding the reference sequence
-  echo refIndex
   storage.handleRegular(refIndex, $read.baseAt(readIndex), reference.baseAt(refIndex))
 
 
@@ -68,7 +66,7 @@ proc reportMatches[StorageType](storage: var StorageType,
 
 proc reportInsertion[StorageType](storage: var StorageType,
                                   readStart: int, refIndex: int, length: int,
-                                  read: Record): void =
+                                  read: Record, reference: ReferenceMock): void =
   ## Tells the provided storage about an insertion on the read with regards to
   ## the reference. An insertion consists of one or more bases found on the read
   ## but not on the reference.
@@ -76,25 +74,27 @@ proc reportInsertion[StorageType](storage: var StorageType,
   ## @param storage The storage object keeping track of the pile-up information.
   ## @param readStart The starting index of the insertion on the read.
   ## @param refIndex The index of the reference base.  
-  var value = "-"
+  var value = "+"
 
-  for offset in countUp(0, length - 1):
-    value &= read.baseAt(readStart + offset)
+  for offset in countUp(readStart, readStart + length - 1):
+    value &= read.baseAt(offset)
 
-  storage.handleRegular(refIndex, value ,'/')
+  # insertion is reported on the base that preceeds it
+  storage.handleRegular(refIndex - 1, value , '/')
 
 
 
 proc reportDeletion[StorageType](storage: var StorageType,
                                  readStart: int, refStart: int, length: int,
                                  reference: ReferenceMock): void =
-  var value = "+"
+  var value = "-"
 
-  for offset in countUp(0, length - 1):
-    value &= reference.baseAt(refStart + offset) 
-    storage.handleRegular(refStart + offset, "*", '/')
+  for offset in countUp(refStart, refStart + length - 1):
+    value &= reference.baseAt(offset) 
+    storage.handleRegular(offset, "*", reference.baseAt(offset))
 
-  storage.handleRegular(refStart, value, '/')
+  # deletion is reported on the base that preceeds it
+  storage.handleRegular(refStart - 1, value, '/')
 
 
 
@@ -110,30 +110,27 @@ proc processEvent[StorageType](event: CigarElement, storage: var StorageType,
                   mutualOffset + readOnlyOffset, mutualOffset + refOnlyOffset,
                   event.len, 
                   read, reference)
+    mutualOffset += event.len
 
   elif consumes.reference:
     # reference only, report deletion
-    reportInsertion(storage, 
-                    mutualOffset + readOnlyOffset, mutualOffset + refOnlyOffset,
-                    event.len, read)
+    reportDeletion(storage, 
+                   mutualOffset + readOnlyOffset, mutualOffset + refOnlyOffset,
+                   event.len, reference)
     refOnlyOffset += event.len
 
   elif consumes.query:
     # query only, report insertion
-    reportDeletion(storage, 
-                   mutualOffset + readOnlyOffset, mutualOffset + refOnlyOffset,
-                   event.len, reference)
+    reportInsertion(storage, 
+                    mutualOffset + readOnlyOffset, mutualOffset + refOnlyOffset,
+                    event.len, read, reference)
     readOnlyOffset += event.len
 
-  mutualOffset += event.len
 
 
 proc process[StorageType](chromosome: Target, storage: var StorageType) : void =
-
-  var counter = 0
   let reference = ReferenceMock(data: "AACACGCCTTAAGTATTATT") # somehow get the reference
   for read in bam.query(chromosome.name, 0, chromosome.lenAsInt - 1):
-    echo "ple"
     var 
       mutualOffset = read.start
       readOnlyOffset = 0
@@ -141,13 +138,23 @@ proc process[StorageType](chromosome: Target, storage: var StorageType) : void =
 
     # since the file is sorted, we can safley flush any information related to
     # indices smaller than the current start of the read
-    discard storage.flushUpTo(read.start)
+    discard storage.flushUpTo(read.start) #todo can a read begin with deletion/insertion
     for event in read.cigar:
       processEvent(event, storage, read, reference, 
                    mutualOffset, readOnlyOffset, refOnlyOffset)
+  discard storage.flushAll()
 
 
 open(bam, paramStr(1), index=true)
-var map = getStorage[SlidingDeque](2000, proc (d: PositionData): void = echo d[])
+var s: seq[PositionData] = @[]
+var map = getStorage[SlidingDeque](20, proc (d: PositionData): void = 
+                                    s.add(d)
+                                  )
 for chromosome in targets(bam.hdr):
   process(chromosome, map)
+
+for element in s:
+  echo createJsonMessage(element)
+
+
+

@@ -29,9 +29,9 @@ proc dispose(self: SlidingTable, current: int): void =
 
 
 proc handleRegular(self: var SlidingTable, position: int, value: string, 
-                   refBase: char = '/'): void =
+                   refBase: char): void =
   self.indices.incl(position)
-  self.table.mgetOrPut(position, newPositionData(position)).increment(value)
+  self.table.mgetOrPut(position, newPositionData(position, refBase)).increment(value)
 
 proc handleStart(self: var SlidingTable, position: int, value: string,
                  refBase: char): void =

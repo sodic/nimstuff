@@ -1,4 +1,5 @@
 # import slidingMap
+import json
 import tables
 import deques
 
@@ -70,3 +71,8 @@ echo s.f(5)
 #   value: "asd",
 #   refBase: '4'
 # )
+
+var tablica = initTable[string, int]()
+tablica["marko"] = 1
+tablica["luka"] = 6
+var a = %tablica

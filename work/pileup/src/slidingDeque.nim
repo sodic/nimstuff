@@ -43,14 +43,21 @@ proc handleRegular*(
     self: var SlidingDeque, 
     position: int,
     value: string,
-    refBase: char = '/'
+    refBase: char
   ): void =
+  if position == 3:
+    echo $position & ' ' & value
   while position >= (self.beginning + self.deq.len):
-    self.deq.addLast(newPositionData(self.deq.len + self.beginning))
+    self.deq.addLast(newPositionData(self.deq.len + self.beginning, refBase))
   
   self.deq[position - self.beginning].increment(value)
 
-proc flushUpTo*(self: var SlidingDeque, position: int) : int = 
+proc flushAll*(self: var SlidingDeque): int =
+  result = self.deq.len
+  self.resetDeq(0)
+  self.beginning = 0
+
+proc flushUpTo*(self: var SlidingDeque, position: int): int = 
   ## Flushes/submits all finished slots in the storage. This is meant to be 
   ## called when starting to process a new read
   ## 
@@ -76,7 +83,7 @@ proc handleStart*(
     self: var SlidingDeque, 
     position: int, 
     readValue: string,
-    refValue: char
+    refBase: char
   ): void =
   ## Used to handle the first position in a new read.
   ## Submits all positions which all smaller and only then updates
@@ -87,7 +94,7 @@ proc handleStart*(
   ## position - the starting index of the new read (wrt. the reference)
   ## readValue - the string found at the position on the read
   discard self.flushUpTo(position)
-  self.handleRegular(position, readValue)
+  self.handleRegular(position, readValue, refBase)
 
 when isMainModule:
   block:

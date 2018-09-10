@@ -6,13 +6,13 @@ They are bolded in the following text.
 
 Let's say we have something this:
 ```
-read 1:    A  A  A  A  -  G  C  C  T  T  A  C  T  A  -  -  -  -  T  T  T  T  T
+read 1:    A  A  A  A  -  G  C  C  T  T  A  C  T  A  A  -  -  -  T  T  T  T  T
 read 2:    A  T  G  A  C  G  T  -  -  T  C  G  T  A  A  G  T  A  T  T  -  -  -
 read 3:    A  T  A  -  -  G  C  C  T  T  A  G  T  -  A  G  T  A  T  T  A  T  T
 
 reference: A  A  C  A  C  G  C  C  T  T  A  -  -  -  A  G  T  A  T  T  A  T  T
 
-indices:   1  2  3  4  5  6  7  8  9 10 11           12 13 14 15 16 17 18 19 20
+indices:   0  1  2  3  4  5  6  7  8  9 10 11           12 13 14 15 16 17 18 19
 (wrt. the reference)
 
 {
