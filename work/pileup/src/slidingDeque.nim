@@ -4,6 +4,7 @@ import positionData
 import utilities
 import tables 
 import sequtils
+import iStorage
 
 type SlidingDeque* = ref object
   deq: Deque[PositionData]
@@ -29,7 +30,7 @@ proc submitDeq(self: SlidingDeque, deq: var Deque[PositionData]): void =
     self.submit(element)
 
 
-proc resetDeq(self: var SlidingDeque, beginning: int) =
+proc resetDeq(self: SlidingDeque, beginning: int) =
   # Submits the current deque and replaces it with a new one
   #
   # PARAMTERS:
@@ -40,24 +41,21 @@ proc resetDeq(self: var SlidingDeque, beginning: int) =
   self.beginning = beginning
 
 proc handleRegular*(
-    self: var SlidingDeque, 
+    self: SlidingDeque, 
     position: int,
     value: string,
     refBase: char
   ): void =
-  if position == 3:
-    echo $position & ' ' & value
   while position >= (self.beginning + self.deq.len):
     self.deq.addLast(newPositionData(self.deq.len + self.beginning, refBase))
   
   self.deq[position - self.beginning].increment(value)
 
-proc flushAll*(self: var SlidingDeque): int =
+proc flushAll*(self: SlidingDeque): int =
   result = self.deq.len
   self.resetDeq(0)
-  self.beginning = 0
 
-proc flushUpTo*(self: var SlidingDeque, position: int): int = 
+proc flushUpTo*(self: SlidingDeque, position: int): int = 
   ## Flushes/submits all finished slots in the storage. This is meant to be 
   ## called when starting to process a new read
   ## 
@@ -80,7 +78,7 @@ proc flushUpTo*(self: var SlidingDeque, position: int): int =
     self.beginning += 1
 
 proc handleStart*(
-    self: var SlidingDeque, 
+    self: SlidingDeque, 
     position: int, 
     readValue: string,
     refBase: char
@@ -95,6 +93,16 @@ proc handleStart*(
   ## readValue - the string found at the position on the read
   discard self.flushUpTo(position)
   self.handleRegular(position, readValue, refBase)
+
+proc getIStorage*(self: SlidingDeque): IStorage=
+  return (
+        handleRegular: proc(position: int,value: string,refBase: char): void= 
+          self.handleRegular(position, value, refBase),
+        flushUpTo: proc(position: int): int = 
+          self.flushUpTo(position),
+        flushAll: proc(): int  = 
+          self.flushAll()
+       )
 
 when isMainModule:
   block:

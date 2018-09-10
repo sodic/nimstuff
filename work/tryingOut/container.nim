@@ -72,7 +72,38 @@ echo s.f(5)
 #   refBase: '4'
 # )
 
-var tablica = initTable[string, int]()
-tablica["marko"] = 1
-tablica["luka"] = 6
-var a = %tablica
+
+type 
+  Stogovni = object
+    value: int
+  Gomilni = ref object
+    value: int
+
+proc changeValue(o: ref Stogovni): void =
+  o.value = 5
+
+
+proc changeValue(o: Gomilni): void =
+  o.value = 5
+
+# var stog = Stogovni() 
+# changeValue(stog[])
+# echo stog.value
+
+var gomila = Gomilni() 
+changeValue(gomila)
+echo gomila.value
+
+
+echo "pocinje tablica"
+
+var table = initTable[int, string]()
+for i in 0..19:
+  discard table.mgetOrPut(i, "marko")
+for i in 0..19:
+  discard table.mgetOrPut(i, "luka")
+for i in 0..19:
+  discard table.mgetOrPut(i, "ivan")
+
+for key in table.keys:
+  echo key

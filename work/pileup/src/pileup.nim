@@ -1,17 +1,11 @@
-import os
 import hts 
 import strutils
-import storageFactory
-import positionData
-import slidingDeque
-import messaging
+import iStorage
 
 type ReferenceMock = object
   data: string
 
 proc baseAt(reference: ReferenceMock, index: int): char = reference.data[index]
-
-var bam:Bam
   
 func lenAsInt(target: Target): int =
   result = cast[int](target.length)
@@ -28,9 +22,9 @@ proc eventIterator(cigar: Cigar): (iterator (): CigarElement)  =
 # I should perhaps remove this as it is just a special case for 
 # reportMatches. However, I left it for semantic reasons and encapsulation
 # (e.g. beginning of the read)
-proc reportMatch[StorageType](storage: var StorageType,
-                              readIndex: int, refIndex: int,
-                              read: Record, reference: ReferenceMock): void =
+proc reportMatch(storage: var IStorage,
+                 readIndex: int, refIndex: int,
+                 read: Record, reference: ReferenceMock): void =
   ## Tells the provided storage about one matching base between the read and the 
   ## reference.
   ##
@@ -43,9 +37,9 @@ proc reportMatch[StorageType](storage: var StorageType,
 
 
 
-proc reportMatches[StorageType](storage: var StorageType, 
-                                readStart: int, refStart: int, length: int, 
-                                read: Record, reference: ReferenceMock) : void =
+proc reportMatches(storage: var IStorage, 
+                   readStart: int, refStart: int, length: int, 
+                   read: Record, reference: ReferenceMock) : void =
   ## Tells the provided storage about a matching substring between
   ## the read and the reference.
   ## A matching substring consists of multiple continuos matching base.
@@ -64,9 +58,9 @@ proc reportMatches[StorageType](storage: var StorageType,
     reportMatch(storage, readStart + offset, refStart + offset, read, reference)
   
 
-proc reportInsertion[StorageType](storage: var StorageType,
-                                  readStart: int, refIndex: int, length: int,
-                                  read: Record, reference: ReferenceMock): void =
+proc reportInsertion(storage: var IStorage,
+                     readStart: int, refIndex: int, length: int,
+                     read: Record, reference: ReferenceMock): void =
   ## Tells the provided storage about an insertion on the read with regards to
   ## the reference. An insertion consists of one or more bases found on the read
   ## but not on the reference.
@@ -84,9 +78,9 @@ proc reportInsertion[StorageType](storage: var StorageType,
 
 
 
-proc reportDeletion[StorageType](storage: var StorageType,
-                                 readStart: int, refStart: int, length: int,
-                                 reference: ReferenceMock): void =
+proc reportDeletion(storage: var IStorage,
+                    readStart: int, refStart: int, length: int,
+                    reference: ReferenceMock): void =
   var value = "-"
 
   for offset in countUp(refStart, refStart + length - 1):
@@ -98,10 +92,10 @@ proc reportDeletion[StorageType](storage: var StorageType,
 
 
 
-proc processEvent[StorageType](event: CigarElement, storage: var StorageType, 
-                               read: Record, reference: ReferenceMock,
-                               mutualOffset: var int, readOnlyOffset: var int, 
-                               refOnlyOffset: var int): void =
+proc processEvent(event: CigarElement, storage: var IStorage, 
+                  read: Record, reference: ReferenceMock,
+                  mutualOffset: var int, readOnlyOffset: var int, 
+                  refOnlyOffset: var int): void =
   let consumes = event.consumes()
   
   if consumes.query and consumes.reference: 
@@ -126,35 +120,19 @@ proc processEvent[StorageType](event: CigarElement, storage: var StorageType,
                     event.len, read, reference)
     readOnlyOffset += event.len
 
+proc pileup*(bam: var Bam, storage: var IStorage) =
+  for chromosome in targets(bam.hdr):
+    let reference = ReferenceMock(data: "AACACGCCTTAAGTATTATT") # somehow get the reference
+    for read in bam.query(chromosome.name, 0, chromosome.lenAsInt - 1):
+      var 
+        mutualOffset = read.start
+        readOnlyOffset = 0
+        refOnlyOffset = 0
 
-
-proc process[StorageType](chromosome: Target, storage: var StorageType) : void =
-  let reference = ReferenceMock(data: "AACACGCCTTAAGTATTATT") # somehow get the reference
-  for read in bam.query(chromosome.name, 0, chromosome.lenAsInt - 1):
-    var 
-      mutualOffset = read.start
-      readOnlyOffset = 0
-      refOnlyOffset = 0
-
-    # since the file is sorted, we can safley flush any information related to
-    # indices smaller than the current start of the read
-    discard storage.flushUpTo(read.start) #todo can a read begin with deletion/insertion
-    for event in read.cigar:
-      processEvent(event, storage, read, reference, 
-                   mutualOffset, readOnlyOffset, refOnlyOffset)
-  discard storage.flushAll()
-
-
-open(bam, paramStr(1), index=true)
-var s: seq[PositionData] = @[]
-var map = getStorage[SlidingDeque](20, proc (d: PositionData): void = 
-                                    s.add(d)
-                                  )
-for chromosome in targets(bam.hdr):
-  process(chromosome, map)
-
-for element in s:
-  echo createJsonMessage(element)
-
-
-
+      # since the file is sorted, we can safley flush any information related to
+      # indices smaller than the current start of the read
+      discard storage.flushUpTo(read.start) #todo can a read begin with deletion/insertion
+      for event in read.cigar:
+        processEvent(event, storage, read, reference, 
+                     mutualOffset, readOnlyOffset, refOnlyOffset)
+    discard storage.flushAll()

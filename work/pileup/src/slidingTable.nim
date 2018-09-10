@@ -1,7 +1,9 @@
 import sets
 import sequtils
 import tables 
-import positionData  
+import positionData 
+import iStorage 
+import utilities
 
 type SlidingTable* = ref object
   table: Table[int, PositionData]
@@ -12,10 +14,26 @@ type SlidingTable* = ref object
 proc newSlidingTable*(initialSize: int, 
                      submitProc: proc (data: PositionData): void
                     ): SlidingTable =
-  SlidingTable(initialSize: initialSize, submit: submitProc)
+  let adjustedSize = powerOf2Ceil(initialSize)
+  SlidingTable(
+    table: initTable[int, PositionData](adjustedSize),
+    indices: initSet[int](),
+    initialSize: adjustedSize, 
+    submit: submitProc
+  )
 
+proc submitTable(self: SlidingTable, table: var Table[int, PositionData]): void =
+  # todo implement
+  # asyncronous function
+  # Submits the current deque to another thread for handling
+  for value in table.values:
+    self.submit(value)
 
-proc dispose(self: SlidingTable, current: int): void =
+proc resetTable(self: SlidingTable) =
+  self.submitTable(self.table)
+  self.table = initTable[int, PositionData](self.initialSize)
+
+proc flushUpTo(self: SlidingTable, current: int): int =
   # try to turn this into a regular filter
   iterator filterSet[T](s: HashSet, predicate: proc (x: T): bool): T = 
     for element in s:
@@ -26,15 +44,31 @@ proc dispose(self: SlidingTable, current: int): void =
     var value : PositionData
     discard self.table.take(index, value)
     self.submit(value) # make async
+    result.inc
 
+proc flushAll(self: SlidingTable): int =
+  result = self.table.len
+  self.resetTable()
+  self.indices = initSet[int]()
 
-proc handleRegular(self: var SlidingTable, position: int, value: string, 
+proc handleRegular(self: SlidingTable, position: int, value: string, 
                    refBase: char): void =
   self.indices.incl(position)
   self.table.mgetOrPut(position, newPositionData(position, refBase)).increment(value)
 
-proc handleStart(self: var SlidingTable, position: int, value: string,
+proc handleStart(self: SlidingTable, position: int, value: string,
                  refBase: char): void =
-  self.dispose(position) # make async
+  discard self.flushUpTo(position) # make async
   self.handleRegular(position, value, refBase)
+
+proc getIStorage*(self: SlidingTable): IStorage =
+  return (
+        handleRegular: proc(position: int, value: string, refBase: char): void = 
+          self.handleRegular(position, value, refBase),
+        flushUpTo: proc(position: int): int = 
+          self.flushUpTo(position),
+        flushAll: proc(): int  = 
+          self.flushAll()
+       )
+
 

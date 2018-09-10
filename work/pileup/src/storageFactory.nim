@@ -1,10 +1,13 @@
 import positionData
+import iStorage
 import slidingTable
 import slidingDeque
-proc getStorage*[StorageType](size: int = 2000,
-                              submitProc: proc (data: PositionData): void
-                             ): StorageType =
-  when StorageType is SlidingDeque:
-    result = newSlidingDeque(size, submitProc)
-  when StorageType is SlidingTable:
-    result = newSlidingTable(size, submitProc)
+
+proc getStorage*(implementation: string, size: int = 2000,
+                 submitProc: proc (data: PositionData): void
+                ): IStorage =
+  case implementation
+    of "deque": newSlidingDeque(size, submitProc).getIStorage()
+    of "table": newSlidingTable(size, submitProc).getIStorage()
+    else: raise newException(ValueError, 
+      "Implementation '" & implementation & "' is not supported.")
