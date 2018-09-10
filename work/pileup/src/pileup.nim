@@ -1,12 +1,8 @@
 import hts 
 import strutils
 import iStorage
+import iSequence
 
-type ReferenceMock = object
-  data: string
-
-proc baseAt(reference: ReferenceMock, index: int): char = reference.data[index]
-  
 func lenAsInt(target: Target): int =
   result = cast[int](target.length)
   # if result < 0:
@@ -24,7 +20,7 @@ proc eventIterator(cigar: Cigar): (iterator (): CigarElement)  =
 # (e.g. beginning of the read)
 proc reportMatch(storage: var IStorage,
                  readIndex: int, refIndex: int,
-                 read: Record, reference: ReferenceMock): void =
+                 read: Record, reference: ISequence): void =
   ## Tells the provided storage about one matching base between the read and the 
   ## reference.
   ##
@@ -39,7 +35,7 @@ proc reportMatch(storage: var IStorage,
 
 proc reportMatches(storage: var IStorage, 
                    readStart: int, refStart: int, length: int, 
-                   read: Record, reference: ReferenceMock) : void =
+                   read: Record, reference: ISequence) : void =
   ## Tells the provided storage about a matching substring between
   ## the read and the reference.
   ## A matching substring consists of multiple continuos matching base.
@@ -60,7 +56,7 @@ proc reportMatches(storage: var IStorage,
 
 proc reportInsertion(storage: var IStorage,
                      readStart: int, refIndex: int, length: int,
-                     read: Record, reference: ReferenceMock): void =
+                     read: Record, reference: ISequence): void =
   ## Tells the provided storage about an insertion on the read with regards to
   ## the reference. An insertion consists of one or more bases found on the read
   ## but not on the reference.
@@ -80,7 +76,7 @@ proc reportInsertion(storage: var IStorage,
 
 proc reportDeletion(storage: var IStorage,
                     readStart: int, refStart: int, length: int,
-                    reference: ReferenceMock): void =
+                    reference: ISequence): void =
   var value = "-"
 
   for offset in countUp(refStart, refStart + length - 1):
@@ -93,7 +89,7 @@ proc reportDeletion(storage: var IStorage,
 
 
 proc processEvent(event: CigarElement, storage: var IStorage, 
-                  read: Record, reference: ReferenceMock,
+                  read: Record, reference: ISequence,
                   mutualOffset: var int, readOnlyOffset: var int, 
                   refOnlyOffset: var int): void =
   let consumes = event.consumes()
@@ -120,9 +116,8 @@ proc processEvent(event: CigarElement, storage: var IStorage,
                     event.len, read, reference)
     readOnlyOffset += event.len
 
-proc pileup*(bam: var Bam, storage: var IStorage) =
+proc pileup*(bam: var Bam, reference: ISequence, storage: var IStorage) =
   for chromosome in targets(bam.hdr):
-    let reference = ReferenceMock(data: "AACACGCCTTAAGTATTATT") # somehow get the reference
     for read in bam.query(chromosome.name, 0, chromosome.lenAsInt - 1):
       var 
         mutualOffset = read.start

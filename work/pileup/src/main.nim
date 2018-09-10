@@ -1,5 +1,6 @@
 import os
 import iStorage
+import iSequence
 import storageFactory
 import positionData
 import messaging
@@ -9,5 +10,10 @@ import hts
 var bam: Bam
 open(bam, paramStr(1), index=true)
 
-var storage = getStorage(paramStr(2), 20, proc (d: PositionData): void = echo createJsonMessage(d))
-pileup(bam, storage)
+var fai: Fai
+if not open(fai, "data/fsl.fa"):
+  quit("Could not open fasta file.")
+  
+var storage = getStorage(paramStr(3), 20, proc (d: PositionData): void = echo createJsonMessage(d))
+
+pileup(bam, getISequence(fai), storage)
