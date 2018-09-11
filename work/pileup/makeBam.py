@@ -1,4 +1,5 @@
 import sys
+import argparse
 
 
 def remove_blanks(seq):
@@ -31,7 +32,7 @@ def cigar(read, ref):
             while index < limit and ref[index] != "-" and read[index] != "-":
                 index += 1
 
-        cigar += f"{index - start	}{letter}"
+        cigar += f"{index - start   }{letter}"
 
     return cigar
 
@@ -45,35 +46,45 @@ def format_line(idx, read, reference):
 
 
 def main():
-	if len(sys.argv) != 2:
-		print("Provide a file name.")
-		return
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('input_file',
+                        help='path to the input file')
+    parser.add_argument("-r", "--reference", default="ref.fa", dest="ref_file_name",
+                        help="name of the reference sequence file")
+    parser.add_argument("-s", "--sam", default="als.sam", dest="sam_file_name",
+                        help="name of the alignments (sam) file")
 
-	with open(sys.argv[1]) as file:
-		content = file.readlines()
+    args = parser.parse_args()
+    input_file_name = args.input_file
+    ref_file_name = args.ref_file_name
+    sam_file_name = args.sam_file_name
 
-	lines = ["".join(line.split()) for line in content if line.strip()]
-	assert len(lines) >= 2, "Provide at least one reference and a read"
+    with open(input_file_name) as file:
+        content = file.readlines()
 
-	len1 = len(lines[0])
-	assert all(len(line) == len1 for line in lines), \
-		"The reads and the reference must have the same length"
+    lines = ["".join(line.split()) for line in content if line.strip()]
+    assert len(lines) >= 2, "Provide at least one reference and a read"
 
-	valid_chars = set("ACGT-")
-	assert all(all(c in valid_chars for c in line)
-	           for line in lines), "Invalid characters in data"
+    len1 = len(lines[0])
+    assert all(len(line) == len1 for line in lines), \
+        "The reads and the reference must have the same length"
 
-	reference = lines.pop()
-	with open("ref.fa", "w") as ref_file:
-	    ref_file.write(">ref\n")
-	    ref_file.write(remove_blanks(reference))
-	    ref_file.write("\n")
+    valid_chars = set("ACGT-")
+    assert all(all(c in valid_chars for c in line)
+               for line in lines), "Invalid characters in data"
 
-	SAM_HEADER = f"@HD\tVN:1.4\tSO:coordinate\n@SQ	SN:ref	LN:{len(reference)}\n"
-	alignment_data = "\n".join(format_line(idx, read, reference)
-	                           for idx, read in enumerate(lines))
-	with open("als.sam", "w") as sam_file:
-	    sam_file.write(SAM_HEADER)
-	    sam_file.write(alignment_data)
+    reference = lines.pop()
+    with open(ref_file_name, "w") as ref_file:
+        ref_file.write(">ref\n")
+        ref_file.write(remove_blanks(reference))
+        ref_file.write("\n")
+
+    SAM_HEADER = f"@HD\tVN:1.4\tSO:coordinate\n@SQ  SN:ref  LN:{len(reference)}\n"
+    alignment_data = "\n".join(format_line(idx, read, reference)
+                               for idx, read in enumerate(lines))
+    with open(sam_file_name, "w") as sam_file:
+        sam_file.write(SAM_HEADER)
+        sam_file.write(alignment_data)
+
 
 main()
