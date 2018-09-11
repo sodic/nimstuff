@@ -40,7 +40,7 @@ proc resetDeq(self: SlidingDeque, beginning: int) =
   self.deq = initDeque[PositionData](self.initialSize)
   self.beginning = beginning
 
-proc handleRegular*(
+proc record*(
     self: SlidingDeque, 
     position: int,
     value: string,
@@ -60,7 +60,7 @@ proc flushUpTo*(self: SlidingDeque, position: int): int =
   ## called when starting to process a new read
   ## 
   ## @return the number of flushed items (primarily for testing and debugging purposes,
-  ## remove when in release)
+  ## feel free to remove when in release)
   if position < self.beginning:
     raise newException(ValueError, "Invalid order of positions.")
   
@@ -75,9 +75,9 @@ proc flushUpTo*(self: SlidingDeque, position: int): int =
 
   while self.beginning < position:
     self.submit(self.deq.popFirst())
-    self.beginning += 1
+    self.beginning.inc
 
-proc handleStart(
+proc recordStart(
     self: SlidingDeque, 
     position: int, 
     readValue: string,
@@ -92,12 +92,12 @@ proc handleStart(
   ## position - the starting index of the new read (wrt. the reference)
   ## readValue - the string found at the position on the read
   discard self.flushUpTo(position)
-  self.handleRegular(position, readValue, refBase)
+  self.record(position, readValue, refBase)
 
 proc getIStorage*(self: SlidingDeque): IStorage=
   return (
-        handleRegular: proc(position: int,value: string,refBase: char): void= 
-          self.handleRegular(position, value, refBase),
+        record: proc(position: int,value: string,refBase: char): void= 
+          self.record(position, value, refBase),
         flushUpTo: proc(position: int): int = 
           self.flushUpTo(position),
         flushAll: proc(): int  = 
@@ -120,28 +120,28 @@ when isMainModule:
       var actual : seq[PositionData] = @[]
       var storage = newSlidingDeque(20, proc (d: PositionData): void = actual.add(d))
       
-      storage.handleStart(0,"A", 'A')
-      storage.handleRegular(1,"A", 'A')
-      storage.handleRegular(2, "C", 'A')
-      storage.handleRegular(3,"A", 'A')
+      storage.recordStart(0,"A", 'A')
+      storage.record(1,"A", 'A')
+      storage.record(2, "C", 'A')
+      storage.record(3,"A", 'A')
       doAssert storage.deq.len == 4
       doAssert storage.beginning == 0
 
-      storage.handleStart(0,"A", 'A')
-      storage.handleRegular(1,"T", 'A')
-      storage.handleRegular(2, "G", 'A')
-      storage.handleRegular(3,"A", 'A')
+      storage.recordStart(0,"A", 'A')
+      storage.record(1,"T", 'A')
+      storage.record(2, "G", 'A')
+      storage.record(3,"A", 'A')
       doAssert storage.deq.len == 4
       doAssert storage.beginning == 0
 
-      storage.handleStart(0,"A", 'A')
-      storage.handleRegular(1,"T", 'A')
-      storage.handleRegular(2, "-AC", 'A')
-      storage.handleRegular(5,"G", 'G')
+      storage.recordStart(0,"A", 'A')
+      storage.record(1,"T", 'A')
+      storage.record(2, "-AC", 'A')
+      storage.record(5,"G", 'G')
       doAssert storage.deq.len == 6, $storage.deq.len
       doAssert storage.beginning == 0
 
-      storage.handleStart(10, "A", 'A')
+      storage.recordStart(10, "A", 'A')
       doAssert storage.deq.len == 1
       doAssert storage.beginning == 10
 

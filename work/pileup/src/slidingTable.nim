@@ -51,20 +51,20 @@ proc flushAll*(self: SlidingTable): int =
   self.resetTable()
   self.indices = initSet[int]()
 
-proc handleRegular*(self: SlidingTable, position: int, value: string, 
+proc record*(self: SlidingTable, position: int, value: string, 
                    refBase: char): void =
   self.indices.incl(position)
   self.table.mgetOrPut(position, newPositionData(position, refBase)).increment(value)
 
-proc handleStart(self: SlidingTable, position: int, value: string,
+proc recordStart(self: SlidingTable, position: int, value: string,
                  refBase: char): void =
   discard self.flushUpTo(position) # make async
-  self.handleRegular(position, value, refBase)
+  self.record(position, value, refBase)
 
 proc getIStorage*(self: SlidingTable): IStorage =
   return (
-        handleRegular: proc(position: int, value: string, refBase: char): void = 
-          self.handleRegular(position, value, refBase),
+        record: proc(position: int, value: string, refBase: char): void = 
+          self.record(position, value, refBase),
         flushUpTo: proc(position: int): int = 
           self.flushUpTo(position),
         flushAll: proc(): int  = 

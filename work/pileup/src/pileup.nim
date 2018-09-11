@@ -19,7 +19,7 @@ proc reportMatch[TSequence, TStorage](storage: var TStorage,
   ## @param refIndex  The index of the mathcing base on the reference.
   ## @param read A record holding the read sequence.
   ## @param reference A record holding the reference sequence
-  storage.handleRegular(refIndex, $read.baseAt(readIndex), reference.baseAt(refIndex))
+  storage.record(refIndex, $read.baseAt(readIndex), reference.baseAt(refIndex))
 
 
 
@@ -60,7 +60,7 @@ proc reportInsertion[TSequence, TStorage](storage: var TStorage,
     value &= read.baseAt(offset)
 
   # insertion is reported on the base that preceeds it
-  storage.handleRegular(refIndex - 1, value , '/')
+  storage.record(refIndex - 1, value , '/')
 
 
 
@@ -71,10 +71,10 @@ proc reportDeletion[TSequence, TStorage](storage: var TStorage,
 
   for offset in countUp(refStart, refStart + length - 1):
     value &= reference.baseAt(offset) 
-    storage.handleRegular(offset, "*", reference.baseAt(offset))
+    storage.record(offset, "*", reference.baseAt(offset))
 
   # deletion is reported on the base that preceeds it
-  storage.handleRegular(refStart - 1, value, '/')
+  storage.record(refStart - 1, value, '/')
 
 
 
