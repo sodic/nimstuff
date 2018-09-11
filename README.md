@@ -1,2 +1,2 @@
 # nimstuff
-Various Nim programs
+BAM pileup engine and misc related programs
