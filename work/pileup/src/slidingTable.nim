@@ -33,7 +33,7 @@ proc resetTable(self: SlidingTable) =
   self.submitTable(self.table)
   self.table = initTable[int, PositionData](self.initialSize)
 
-proc flushUpTo(self: SlidingTable, current: int): int =
+proc flushUpTo*(self: SlidingTable, current: int): int =
   # try to turn this into a regular filter
   iterator filterSet[T](s: HashSet, predicate: proc (x: T): bool): T = 
     for element in s:
@@ -46,12 +46,12 @@ proc flushUpTo(self: SlidingTable, current: int): int =
     self.submit(value) # make async
     result.inc
 
-proc flushAll(self: SlidingTable): int =
+proc flushAll*(self: SlidingTable): int =
   result = self.table.len
   self.resetTable()
   self.indices = initSet[int]()
 
-proc handleRegular(self: SlidingTable, position: int, value: string, 
+proc handleRegular*(self: SlidingTable, position: int, value: string, 
                    refBase: char): void =
   self.indices.incl(position)
   self.table.mgetOrPut(position, newPositionData(position, refBase)).increment(value)

@@ -79,7 +79,7 @@ def main():
         ref_file.write(remove_blanks(reference))
         ref_file.write("\n")
 
-    SAM_HEADER = f"@HD\tVN:1.4\tSO:coordinate\n@SQ  SN:ref  LN:{len(reference)}\n"
+    SAM_HEADER = f"@HD\tVN:1.4\tSO:coordinate\n@SQ\tSN:ref\tLN:{len(reference)}\n"
     alignment_data = "\n".join(format_line(idx, read, reference)
                                for idx, read in enumerate(lines))
     with open(sam_file_name, "w") as sam_file:

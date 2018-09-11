@@ -1,26 +1,16 @@
 import hts 
-import strutils
-import iStorage
-import iSequence
 
 func lenAsInt(target: Target): int =
   result = cast[int](target.length)
   # if result < 0:
   #   raise newException(RangeError, "Chromosome length out of range for integers")
 
-
-proc eventIterator(cigar: Cigar): (iterator (): CigarElement)  =
-  return iterator(): CigarElement {.closure.} = 
-    for event in cigar:
-      yield event
-
-
 # I should perhaps remove this as it is just a special case for 
 # reportMatches. However, I left it for semantic reasons and encapsulation
 # (e.g. beginning of the read)
-proc reportMatch(storage: var IStorage,
+proc reportMatch[TSequence, TStorage](storage: var TStorage,
                  readIndex: int, refIndex: int,
-                 read: Record, reference: ISequence): void =
+                 read: Record, reference: TSequence): void =
   ## Tells the provided storage about one matching base between the read and the 
   ## reference.
   ##
@@ -33,9 +23,9 @@ proc reportMatch(storage: var IStorage,
 
 
 
-proc reportMatches(storage: var IStorage, 
+proc reportMatches[TSequence, TStorage](storage: var TStorage, 
                    readStart: int, refStart: int, length: int, 
-                   read: Record, reference: ISequence) : void =
+                   read: Record, reference: TSequence) : void =
   ## Tells the provided storage about a matching substring between
   ## the read and the reference.
   ## A matching substring consists of multiple continuos matching base.
@@ -54,9 +44,9 @@ proc reportMatches(storage: var IStorage,
     reportMatch(storage, readStart + offset, refStart + offset, read, reference)
   
 
-proc reportInsertion(storage: var IStorage,
+proc reportInsertion[TSequence, TStorage](storage: var TStorage,
                      readStart: int, refIndex: int, length: int,
-                     read: Record, reference: ISequence): void =
+                     read: Record, reference: TSequence): void =
   ## Tells the provided storage about an insertion on the read with regards to
   ## the reference. An insertion consists of one or more bases found on the read
   ## but not on the reference.
@@ -74,9 +64,9 @@ proc reportInsertion(storage: var IStorage,
 
 
 
-proc reportDeletion(storage: var IStorage,
+proc reportDeletion[TSequence, TStorage](storage: var TStorage,
                     readStart: int, refStart: int, length: int,
-                    reference: ISequence): void =
+                    reference: TSequence): void =
   var value = "-"
 
   for offset in countUp(refStart, refStart + length - 1):
@@ -88,8 +78,8 @@ proc reportDeletion(storage: var IStorage,
 
 
 
-proc processEvent(event: CigarElement, storage: var IStorage, 
-                  read: Record, reference: ISequence,
+proc processEvent[TSequence, TStorage](event: CigarElement, storage: var TStorage, 
+                  read: Record, reference: TSequence,
                   mutualOffset: var int, readOnlyOffset: var int, 
                   refOnlyOffset: var int): void =
   let consumes = event.consumes()
@@ -116,7 +106,7 @@ proc processEvent(event: CigarElement, storage: var IStorage,
                     event.len, read, reference)
     readOnlyOffset += event.len
 
-proc pileup*(bam: var Bam, reference: ISequence, storage: var IStorage) =
+proc pileup*[TSequence, TStorage](bam: var Bam, reference: TSequence, storage: var TStorage) =
   for chromosome in targets(bam.hdr):
     for read in bam.query(chromosome.name, 0, chromosome.lenAsInt - 1):
       var 

@@ -46,7 +46,7 @@ proc handleRegular*(
     value: string,
     refBase: char
   ): void =
-  while position >= (self.beginning + self.deq.len):
+  if position >= (self.beginning + self.deq.len):
     self.deq.addLast(newPositionData(self.deq.len + self.beginning, refBase))
   
   self.deq[position - self.beginning].increment(value)
@@ -77,7 +77,7 @@ proc flushUpTo*(self: SlidingDeque, position: int): int =
     self.submit(self.deq.popFirst())
     self.beginning += 1
 
-proc handleStart*(
+proc handleStart(
     self: SlidingDeque, 
     position: int, 
     readValue: string,
