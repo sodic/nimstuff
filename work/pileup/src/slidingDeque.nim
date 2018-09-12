@@ -46,7 +46,9 @@ proc record*(
     value: string,
     refBase: char
   ): void =
-  if position >= (self.beginning + self.deq.len):
+  assert position >= self.beginning, "The file is not sorted: " & $position & ' ' & $self.beginning
+  assert position <= (self.beginning + self.deq.len), "Invalid position" & $position & $(self.beginning + self.deq.len)
+  if position == (self.beginning + self.deq.len):
     self.deq.addLast(newPositionData(self.deq.len + self.beginning, refBase))
   
   self.deq[position - self.beginning].increment(value)
@@ -73,7 +75,7 @@ proc flushUpTo*(self: SlidingDeque, position: int): int =
     self.beginning = position
     return
 
-  while self.beginning < position:
+  while self.beginning < position - 1: # -1 because of the insertions on read starts
     self.submit(self.deq.popFirst())
     self.beginning.inc
 

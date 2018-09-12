@@ -19,6 +19,8 @@ proc reportMatch[TSequence, TStorage](storage: var TStorage,
   ## @param refIndex  The index of the mathcing base on the reference.
   ## @param read A record holding the read sequence.
   ## @param reference A record holding the reference sequence
+  # if read.baseAt(readIndex) == '.':
+    # echo read
   storage.record(refIndex, $read.baseAt(readIndex), reference.baseAt(refIndex))
 
 
@@ -82,6 +84,15 @@ proc processEvent[TSequence, TStorage](event: CigarElement, storage: var TStorag
                   read: Record, reference: TSequence,
                   mutualOffset: var int, readOnlyOffset: var int, 
                   refOnlyOffset: var int): void =
+
+  let operation = event.op
+  if operation == soft_clip:
+    readOnlyOffset += 1
+    return
+  if operation == hard_clip: raise newException(ValueError, "hard clip")
+  assert operation != ref_skip and operation != pad, "Illegal operation"
+
+
   let consumes = event.consumes()
   
   if consumes.query and consumes.reference: 
