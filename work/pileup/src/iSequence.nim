@@ -7,7 +7,8 @@ type
   ]
 
 proc getISequence*(fai: Fai): ISequence = 
+  # let name = fai[0]
   return (
-      baseAt: proc (index: int): char = fai.get("NC_000913", index, index)[0],
-      substring: proc (first, last: int): string = fai.get("NC_000913", first, last)
+      baseAt: proc (index: int): char = fai.get("ref", index, index)[0],
+      substring: proc (first, last: int): string = fai.get("ref", first, last)
     )

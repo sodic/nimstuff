@@ -19,8 +19,6 @@ proc reportMatch[TSequence, TStorage](storage: var TStorage,
   ## @param refIndex  The index of the mathcing base on the reference.
   ## @param read A record holding the read sequence.
   ## @param reference A record holding the reference sequence
-  # if read.baseAt(readIndex) == '.':
-    # echo read
   storage.record(refIndex, $read.baseAt(readIndex), reference.baseAt(refIndex))
 
 
@@ -82,12 +80,11 @@ proc reportDeletion[TSequence, TStorage](storage: var TStorage,
 
 proc processEvent[TSequence, TStorage](event: CigarElement, storage: var TStorage, 
                   read: Record, reference: TSequence,
-                  mutualOffset: var int, readOnlyOffset: var int, 
-                  refOnlyOffset: var int): void =
+                  readOffset: var int, refOffset: var int): void =
 
   let operation = event.op
   if operation == soft_clip:
-    readOnlyOffset += 1
+    readOffset += 1
     return
   if operation == hard_clip: raise newException(ValueError, "hard clip")
   assert operation != ref_skip and operation != pad, "Illegal operation"
@@ -98,37 +95,37 @@ proc processEvent[TSequence, TStorage](event: CigarElement, storage: var TStorag
   if consumes.query and consumes.reference: 
     # mutual, report all matches
     reportMatches(storage, 
-                  mutualOffset + readOnlyOffset, mutualOffset + refOnlyOffset,
-                  event.len, 
+                  readOffset, refOffset, event.len, 
                   read, reference)
-    mutualOffset += event.len
+    readOffset += event.len
+    refOffset += event.len
 
   elif consumes.reference:
     # reference only, report deletion
     reportDeletion(storage, 
-                   mutualOffset + readOnlyOffset, mutualOffset + refOnlyOffset,
-                   event.len, reference)
-    refOnlyOffset += event.len
+                   readOffset, refOffset, event.len, 
+                   reference)
+    refOffset += event.len
 
   elif consumes.query:
-    # query only, report insertion
+    # read only, report insertion
     reportInsertion(storage, 
-                    mutualOffset + readOnlyOffset, mutualOffset + refOnlyOffset,
-                    event.len, read, reference)
-    readOnlyOffset += event.len
+                    readOffset, refOffset, event.len,
+                    read, reference)
+    readOffset += event.len
 
 proc pileup*[TSequence, TStorage](bam: var Bam, reference: TSequence, storage: var TStorage) =
   for chromosome in targets(bam.hdr):
     for read in bam.query(chromosome.name, 0, chromosome.lenAsInt - 1):
+      echo read.start
       var 
-        mutualOffset = read.start
-        readOnlyOffset = 0
-        refOnlyOffset = 0
+        readOffset = 0
+        refOffset = read.start
 
       # since the file is sorted, we can safley flush any information related to
       # indices smaller than the current start of the read
       discard storage.flushUpTo(read.start) #todo can a read begin with deletion/insertion
       for event in read.cigar:
         processEvent(event, storage, read, reference, 
-                     mutualOffset, readOnlyOffset, refOnlyOffset)
+                     readOffset, refOffset)
     discard storage.flushAll()

@@ -1,5 +1,6 @@
 import sys
 import argparse
+from itertools import dropwhile, groupby
 
 
 def remove_blanks(seq):
@@ -7,42 +8,45 @@ def remove_blanks(seq):
 
 
 def cigar(read, ref):
-    cigar = ""
-    index = 0
-    limit = len(read)
-    while index < limit:
-        if read[index] == "-" and ref[index] == "-":
-            index += 1
-            continue
-
-        start = index
-        letter = None
-        if read[index] == "-":
-            letter = "D"
-            while index < limit and read[index] == "-" and ref[index] != "-":
-                index += 1
-
-        elif ref[index] == "-":
-            letter = "I"
-            while index < limit and ref[index] == "-" and read[index] != "-":
-                index += 1
-
+    def transform(read_base, ref_base):
+        if read_base == '-' and ref_base == '-':
+            return ""
+        elif read_base == "-" and ref_base != "-":
+            return "D"
+        elif read_base != "-" and ref_base == "-":
+            return "I"
         else:
-            letter = "M"
-            while index < limit and ref[index] != "-" and read[index] != "-":
-                index += 1
+            return "M"
 
-        cigar += f"{index - start   }{letter}"
+    grouper = groupby(transform(b1, b2) for b1, b2 in zip(read, ref))
+    return "".join(str(len(list(v))) + k for k, v in grouper if k)
 
-    return cigar
+
+def make_sam_entry(index, read, reference):
+    shifted_read = "".join(dropwhile(lambda c: c == "-", read))
+    read_offset = len(read) - len(shifted_read)
+    shifted_reference = reference[read_offset:]
+    real_read = remove_blanks(shifted_read)
+
+    return (index, 0, "ref",
+            read_offset + 1, 60,
+            cigar(shifted_read, shifted_reference),
+            "*", 0, 0, real_read, "@"*len(real_read))
+
+def sam_sort_key(entry):
+    return entry[2], entry[3]
 
 
 def format_line(idx, read, reference):
-    real_read = remove_blanks(read)
-    return "\t".join([f"read{idx}", "0",
-                      "ref", "1", "60",
-                      cigar(read, reference), "*", "0",
-                      "0", real_read, "@"*len(real_read)])
+    shifted_read = "".join(dropwhile(lambda c: c == "-", read))
+    read_offset = len(read) - len(shifted_read)
+    shifted_reference = reference[read_offset:]
+    real_read = remove_blanks(shifted_read)
+
+    return "\t".join((f"read{idx}", "0",
+                      "ref", str(read_offset + 1), "60",
+                      cigar(shifted_read, shifted_reference), "*", "0",
+                      "0", real_read, "@"*len(real_read)))
 
 
 def main():
@@ -65,26 +69,24 @@ def main():
     lines = ["".join(line.split()) for line in content if line.strip()]
     assert len(lines) >= 2, "Provide at least one reference and a read"
 
-    len1 = len(lines[0])
-    assert all(len(line) == len1 for line in lines), \
-        "The reads and the reference must have the same length"
-
     valid_chars = set("ACGT-")
     assert all(all(c in valid_chars for c in line)
                for line in lines), "Invalid characters in data"
 
     reference = lines.pop()
+    real_reference = remove_blanks(reference)
     with open(ref_file_name, "w") as ref_file:
         ref_file.write(">ref\n")
-        ref_file.write(remove_blanks(reference))
+        ref_file.write(real_reference)
         ref_file.write("\n")
 
-    SAM_HEADER = f"@HD\tVN:1.4\tSO:coordinate\n@SQ\tSN:ref\tLN:{len(reference)}\n"
-    alignment_data = "\n".join(format_line(idx, read, reference)
-                               for idx, read in enumerate(lines))
+    SAM_HEADER = f"@HD\tVN:1.4\tSO:coordinate\n@SQ\tSN:ref\tLN:{len(real_reference)}\n"
+    sam_entries = sorted((make_sam_entry(idx + 1, read, reference) 
+            for idx, read in enumerate(lines)), key=sam_sort_key)
+    sam_strings = "\n".join("\t".join(map(str,entry)) for entry in sam_entries)
     with open(sam_file_name, "w") as sam_file:
         sam_file.write(SAM_HEADER)
-        sam_file.write(alignment_data)
+        sam_file.write(sam_strings)
 
 
 main()
