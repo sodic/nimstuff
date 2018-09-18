@@ -124,4 +124,4 @@ proc pileup*[TSequence, TReadIterator, TStorage](reads: TReadIterator,
       for event in read.cigar:
         processEvent(event, storage, read, reference, 
                      readOffset, refOffset)
-      discard storage.flushAll()
+  discard storage.flushAll()

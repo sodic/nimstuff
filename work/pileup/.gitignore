@@ -1,0 +1,6 @@
+data/
+*.bam
+*.fa.fai
+*.fa
+*.sam
+*.txt
