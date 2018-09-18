@@ -4,3 +4,5 @@ data/
 *.fa
 *.sam
 *.txt
+*.py
+prepareSample
