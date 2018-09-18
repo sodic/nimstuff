@@ -1,10 +1,5 @@
 import hts 
 
-func lenAsInt(target: Target): int =
-  result = cast[int](target.length)
-  # if result < 0:
-  #   raise newException(RangeError, "Chromosome length out of range for integers")
-
 # I should perhaps remove this as it is just a special case for 
 # reportMatches. However, I left it for semantic reasons and encapsulation
 # (e.g. beginning of the read)
@@ -114,18 +109,19 @@ proc processEvent[TSequence, TStorage](event: CigarElement, storage: var TStorag
                     read, reference)
     readOffset += event.len
 
-proc pileup*[TSequence, TStorage](bam: var Bam, reference: TSequence, storage: var TStorage) =
-  for chromosome in targets(bam.hdr):
-    for read in bam.query(chromosome.name, 0, chromosome.lenAsInt - 1):
-      echo read.start
+proc pileup*[TSequence, TReadIterator, TStorage](reads: TReadIterator, 
+                                                 reference: TSequence,
+                                                 storage: var TStorage): void =
+  for read in reads:
+      echo "pla"
       var 
         readOffset = 0
         refOffset = read.start
 
       # since the file is sorted, we can safley flush any information related to
       # indices smaller than the current start of the read
-      discard storage.flushUpTo(read.start) #todo can a read begin with deletion/insertion
+      # discard storage.flushUpTo(read.start) #todo can a read begin with deletion/insertion
       for event in read.cigar:
         processEvent(event, storage, read, reference, 
                      readOffset, refOffset)
-    discard storage.flushAll()
+      discard storage.flushAll()
