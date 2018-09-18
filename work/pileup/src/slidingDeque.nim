@@ -68,8 +68,8 @@ proc flushUpTo*(self: SlidingDeque, position: int): int =
   ## 
   ## @return the number of flushed items (primarily for testing and debugging purposes,
   ## feel free to remove when in release)
-  if position < self.beginning:
-    raise newException(ValueError, "Invalid order of positions.")
+  if position < self.beginning - 1:
+    raise newException(ValueError, "Flush index lower than beginning.")
   
   # if a new start position is larger than all positions contained in
   # the deque, instead of emptying it manually, we can submit it and

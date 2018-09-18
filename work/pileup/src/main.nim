@@ -34,6 +34,5 @@ for chromosome in targets(bam.hdr):
                   20,
                   proc(d: PositionData): void = echo createJsonMessage(d)
                 )
-  echo "ple"
   var records = newRecordContainer(bam, chromosome.name)
   pileup(records, fai.getISequence(), storage)
