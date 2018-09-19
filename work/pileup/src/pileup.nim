@@ -112,11 +112,7 @@ proc pileup*[TSequence, TReadIterable, TStorage](reads: TReadIterable,
   ## The parameter `reference` is an interface for accessing the reference sequence.
   ## The parameter `storage` is an implementation of a storage object used in
   ## the pileup.
-  var counter = 0
   for read in reads:
-      counter.inc
-      if counter mod 1000 == 0:
-        echo $(round(100*counter/28428648, 5)) & '%'
       var 
         readOffset = 0
         refOffset = read.start
