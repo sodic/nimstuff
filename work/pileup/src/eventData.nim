@@ -11,11 +11,15 @@ func initEventData*(): EventData =
 
 
 proc increment*(data: var EventData, key: string) : void =
-  if data.hasKeyOrPut(key, 1):
-    data[key] = data[key] + 1
+  var k = key
+  shallow(k)
+  if data.hasKeyOrPut(k, 1):
+    data[k] = data[k] + 1
 
 func `[]`*(data: var EventData, key: string): int =
-  data.getOrDefault(key)
+  var k = key
+  shallow(k)
+  data.getOrDefault(k)
 
 proc `%`*(self: EventData): JsonNode =
   result = newJObject()

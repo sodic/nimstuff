@@ -5,6 +5,7 @@ import slidingDeque
 import messaging
 import pileup
 import hts
+import nimprof
 
 
 type RecordContainer = ref object
@@ -31,7 +32,7 @@ if not open(fai, paramStr(2)):
 
 for chromosome in targets(bam.hdr):
   var storage = newslidingDeque(
-                  20,
+                  100,
                   proc(d: PositionData): void = echo createJsonMessage(d)
                 )
   var records = newRecordContainer(bam, chromosome.name)
