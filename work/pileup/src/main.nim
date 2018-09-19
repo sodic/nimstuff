@@ -1,7 +1,7 @@
 import os
-import iSequence
-import positionData
-import slidingDeque
+import interfaces/iSequence
+import storage/containers/positionData
+import storage/slidingDeque
 import messaging
 import pileup
 import hts

@@ -1,10 +1,10 @@
 import deques
-import eventData
-import positionData
-import utilities
-import tables 
+import containers/eventData
+import containers/positionData
+import math
 import sequtils
-import iStorage
+import ../interfaces/iStorage
+import tables 
 
 type SlidingDeque* = ref object
   deq: Deque[PositionData]
@@ -14,7 +14,7 @@ type SlidingDeque* = ref object
 
 proc newSlidingDeque*(initialSize: int, 
                     submitProc: proc (data: PositionData): void): SlidingDeque =
-  let adjustedSize = powerOf2Ceil(initialSize)
+  let adjustedSize = nextPowerOfTwo(initialSize)
   SlidingDeque(
     deq: initDeque[PositionData](adjustedSize),
     submit: submitProc, 

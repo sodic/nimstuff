@@ -1,9 +1,9 @@
 import sets
 import sequtils
-import tables 
-import positionData 
-import iStorage 
-import utilities
+import tables
+import containers/positionData 
+import interfaces/iStorage 
+import math
 
 type SlidingTable* = ref object
   table: Table[int, PositionData]
@@ -14,7 +14,7 @@ type SlidingTable* = ref object
 proc newSlidingTable*(initialSize: int, 
                      submitProc: proc (data: PositionData): void
                     ): SlidingTable =
-  let adjustedSize = powerOf2Ceil(initialSize)
+  let adjustedSize = nextPowerOfTwo(initialSize)
   SlidingTable(
     table: initTable[int, PositionData](adjustedSize),
     indices: initSet[int](),
